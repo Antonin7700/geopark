@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Carte de Paris avec Parkings et Marqueur de Position Rouge</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 600px; }
+    .reserve-button {
+      display: block;
+      margin-top: 10px;
+      padding: 5px 10px;
+      background-color: #007BFF;
+      color: white;
+      text-align: center;
+      cursor: pointer;
+    }
+    .reservation-form {
+      display: flex;
+      flex-direction: column;
+      margin-top: 10px;
+    }
+    .reservation-form label {
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Carte de Paris avec Parkings et Marqueur de Position Rouge</h1>
+  <div id="map"></div>
+  <h2>Nombre total de réservations: <span id="total-reservations">0</span></h2>
+  <h2>Parking le plus proche: <span id="closest-parking">N/A</span></h2>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script>
+    var currentLocation = [48.8566, 2.3522]; // Coordonnées de Paris
+    var map = L.map('map').setView(currentLocation, 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    // Icône personnalisée rouge pour le marqueur de position
+    var redIcon = L.icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      tooltipAnchor: [16, -28],
+      shadowSize: [41, 41]
+    });
+
+    var parkingNodes = [];
+
+    // Fonction pour récupérer les parkings à Paris depuis Overpass API
+    function getParkingData() {
+      axios.get('https://overpass-api.de/api/interpreter', {
+        params: {
+          data: `
+            [out:json];
+            area[name="Paris"]->.searchArea;
+            (
+              node["amenity"="parking"](area.searchArea);
+              way["amenity"="parking"](area.searchArea);
+              relation["amenity"="parking"](area.searchArea);
+            );
+            out body;
+            >;
+            out skel qt;
+          `
+        }
+      })
+      .then(response => {
+        // Traiter les données de réponse pour afficher les parkings sur la carte
+        displayParkingData(response.data);
+      })
+      .catch(error => {
+        console.error('Erreur lors de la récupération des parkings:', error);
+      });
+    }
+
+    // Fonction pour afficher les données de parkings sur la carte
+    function displayParkingData(data) {
+      parkingNodes = data.elements;
+      console.log('Parking Nodes:', parkingNodes);
+
+      parkingNodes.forEach(node => {
+        if (node.lat && node.lon) {
+          var marker = L.marker([node.lat, node.lon]).addTo(map)
+            .bindPopup(createPopupContent(node));
+        } else {
+          console.warn('Coordonnées manquantes pour le parking:', node);
+        }
+      });
+
+      findClosestParking();
+    }
+
+    // Fonction pour créer le contenu du popup avec le formulaire de réservation
+    function createPopupContent(node) {
+      var parkingName = node.tags.name || 'Non nommé';
+      var reservations = getReservationsForParking(node.id);
+      var reservationList = reservations.map(res => `
+        <li>
+          ${res.vehicleType} à ${new Date(res.reservationTime).toLocaleString()}
+        </li>
+      `).join('');
+
+      var popupContent = `<div>
+        <strong>Parking : ${parkingName}</strong>
+        <ul>${reservationList}</ul>
+        <form class="reservation-form" onsubmit="reserveParking(event, '${node.id}', '${parkingName}', '${node.lat}', '${node.lon}')">
+          <label for="vehicleType">Type de véhicule:</label>
+          <select id="vehicleType" name="vehicleType" required>
+            <option value="voiture">Voiture</option>
+            <option value="moto">Moto</option>
+            <option value="vélo">Vélo</option>
+          </select>
+          <label for="reservationTime">Heure de réservation:</label>
+          <input type="datetime-local" id="reservationTime" name="reservationTime" required>
+          <button type="submit" class="reserve-button">Réserver</button>
+        </form>
+      </div>`;
+      return popupContent;
+    }
+
+    // Fonction pour récupérer les réservations pour un parking donné
+    function getReservationsForParking(parkingId) {
+      var reservations = JSON.parse(localStorage.getItem('reservations')) || [];
+      return reservations.filter(res => res.id === parkingId);
+    }
+
+    // Fonction pour gérer la réservation
+    function reserveParking(event, id, name, lat, lon) {
+      event.preventDefault();
+      var form = event.target;
+      var vehicleType = form.vehicleType.value;
+      var reservationTime = form.reservationTime.value;
+
+      var reservations = JSON.parse(localStorage.getItem('reservations')) || [];
+      reservations.push({ id, name, lat, lon, vehicleType, reservationTime });
+      localStorage.setItem('reservations', JSON.stringify(reservations));
+
+      alert(`Parking "${name}" réservé avec succès!`);
+
+      // Mettre à jour le nombre total de réservations
+      updateTotalReservations();
+
+      // Recharger le popup pour afficher la nouvelle réservation
+      var marker = L.marker([lat, lon]).addTo(map)
+          .bindPopup(createPopupContent({ id, tags: { name }, lat, lon }))
+          .openPopup();
+    }
+
+    // Fonction pour mettre à jour le nombre total de réservations
+    function updateTotalReservations() {
+      var reservations = JSON.parse(localStorage.getItem('reservations')) || [];
+      document.getElementById('total-reservations').textContent = reservations.length;
+    }
+
+    // Ajouter un marqueur pour la position actuelle à Paris avec icône rouge
+    L.marker(currentLocation, { icon: redIcon }).addTo(map)
+      .bindPopup('Vous êtes ici')
+      .openPopup();
+
+    // Fonction pour trouver le parking le plus proche de la position actuelle
+    function findClosestParking() {
+  var closestParking = null;
+  var minDistance = Infinity;
+
+  parkingNodes.forEach(node => {
+    if (node.lat && node.lon) {
+      var distance = getDistance(currentLocation, [node.lat, node.lon]);
+      console.log(`Distance to ${node.tags.name || 'Non nommé'}:`, distance);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestParking = node;
+      }
+    }
+  });
+
+  if (closestParking) {
+    document.getElementById('closest-parking').textContent = closestParking.tags.name || 'Non nommé';
+  } else {
+    document.getElementById('closest-parking').textContent = 'Aucun parking trouvé';
+  }
+}
+
+    // Fonction pour calculer la distance entre deux points (Haversine formula)
+    function getDistance(coord1, coord2) {
+      var R = 6371e3; // Earth radius in meters
+      var lat1 = coord1[0] * Math.PI / 180;
+      var lat2 = coord2[0] * Math.PI / 180;
+      var deltaLat = (coord2[0] - coord1[0]) * Math.PI / 180;
+      var deltaLon = (coord2[1] - coord1[1]) * Math.PI / 180;
+
+      var a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+              Math.cos(lat1) * Math.cos(lat2) *
+              Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
+      var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      return R * c; // Distance in meters
+    }
+
+    // Appeler la fonction pour récupérer et afficher les parkings à Paris
+    getParkingData();
+
+    // Mettre à jour le nombre total de réservations au chargement de la page
+    updateTotalReservations();
+  </script>
+</body>
+</html>
