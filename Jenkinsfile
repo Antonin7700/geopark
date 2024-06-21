@@ -4,14 +4,18 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                echo 'Building the HTML project...'
-                // Insérez ici les étapes de build si nécessaires (par exemple, npm install, build scripts, etc.)
+                echo 'Building the project...'
+                // Ajoutez ici les étapes spécifiques à votre projet, par exemple :
+                // sh 'npm install'   (si vous utilisez npm)
+                // sh 'npm run build' (pour construire votre projet)
+                // ou d'autres commandes selon votre cas
             }
         }
+    }
+
     post {
         always {
             echo 'Pipeline finished!'
-            // Insérez ici d'autres actions post-build si nécessaires
+            // Ajoutez ici d'autres actions post-build si nécessaires
         }
     }
-}
