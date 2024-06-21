@@ -1,21 +1,27 @@
 pipeline {
+    /* je suis un commentaire */
     agent any
 
     stages {
-        stage('Build') {
+        stage('HELLO') {
             steps {
-                echo 'Building the project...'
-                // Ajoutez ici les étapes spécifiques à votre projet, par exemple :
-                // sh 'npm install'   (si vous utilisez npm)
-                // sh 'npm run build' (pour construire votre projet)
-                // ou d'autres commandes selon votre cas
+                echo 'Hello World'
+            }
+        }
+        stage('BUILD') {
+            steps {
+                echo 'Developpement'
+            }
+        }
+        stage('Test') {
+            steps {
+                echo 'Testing'
+            }
+        }
+        stage('DEPLOY') {
+            steps {
+                echo 'Mise en Production'
             }
         }
     }
-
-    post {
-        always {
-            echo 'Pipeline finished!'
-            // Ajoutez ici d'autres actions post-build si nécessaires
-        }
-    }
+}
