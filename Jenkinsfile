@@ -1,32 +1,27 @@
 pipeline {
+    /* je suis un commentaire */
     agent any
 
     stages {
-        stage('Build') {
+        stage('HELLO') {
             steps {
-                echo 'Building the project...'
-                // Exécutez vos étapes spécifiques au projet ici
-                sh 'npm install'   // Exemple: installer les dépendances Node.js
-                sh 'npm run build' // Exemple: construire le projet avec npm
+                echo 'Hello World'
             }
         }
-    }
-
-    post {
-        success {
-            echo 'Pipeline finished successfully!'
-            archiveArtifacts artifacts: '**/target/*.jar', allowEmptyArchive: true
-            // Archiver les fichiers .jar générés dans le répertoire 'target'
+        stage('BUILD') {
+            steps {
+                echo 'Developpement'
+            }
         }
-        failure {
-            echo 'Pipeline failed!'
-            mail to: 'admin@example.com', subject: 'Pipeline Failed', body: "Le pipeline a échoué pour le projet XYZ."
-            // Envoyer un e-mail en cas d'échec du pipeline
+        stage('Test') {
+            steps {
+                echo 'Testing'
+            }
         }
-        always {
-            echo 'Pipeline finished!'
-            cleanWs()
-            // Nettoyer l'espace de travail à la fin du pipeline
+        stage('DEPLOY') {
+            steps {
+                echo 'Mise en Production'
+            }
         }
     }
 }
