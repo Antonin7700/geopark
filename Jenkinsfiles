@@ -1,0 +1,22 @@
+pipeline {
+    agent any
+    stages {
+        stage('Checkout') {
+            steps {
+                // Checkout the repository
+                git url: 'https://github.com/votre-utilisateur/votre-repository.git', branch: 'main'
+            }
+        }
+        stage('Deploy to GitHub Pages') {
+            steps {
+                script {
+                    // Install the GitHub Pages dependencies if necessary
+                    sh 'npm install -g gh-pages'
+
+                    // Deploy the site
+                    sh 'gh-pages -d .'
+                }
+            }
+        }
+    }
+}
